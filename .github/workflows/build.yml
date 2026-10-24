@@ -1,11 +1,13 @@
-name: Deposit Slip Tracker (Windows build)
+name: Build Windows installer
 
 on:
   push:
-    branches: [main]
-    paths:
-      - "**"
+    branches: ["**"]
+    tags: ["v*"]
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -17,9 +19,24 @@ jobs:
           python-version: "3.12"
       - name: Install dependencies
         run: pip install -r requirements.txt pyinstaller
-      - name: Build exe
-        run: pyinstaller --noconfirm --onefile --windowed --name DepositSlipTracker --collect-submodules pillow_heif --collect-data rapidocr_onnxruntime run.py
+      - name: Install Inno Setup
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) {
+            choco install innosetup -y --no-progress
+          }
+      - name: Build app and installer
+        run: python build.py
+      - name: Check installer exists
+        shell: pwsh
+        run: if (-not (Get-ChildItem dist\DepositSlipTracker-Setup-*.exe)) { exit 1 }
       - uses: actions/upload-artifact@v4
         with:
-          name: DepositSlipTracker-windows
-          path: dist/DepositSlipTracker.exe
+          name: DepositSlipTracker-Setup
+          path: dist/DepositSlipTracker-Setup-*.exe
+      - name: Publish GitHub release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/DepositSlipTracker-Setup-*.exe
+          generate_release_notes: true

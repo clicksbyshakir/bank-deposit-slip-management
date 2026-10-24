@@ -10,13 +10,23 @@ There are two ways to read photos, chosen in Settings:
 | Fills in | Bank-printed fields: date, time, ref #, CAD/USD cash, FX rate, denominations; plus the account when a keyword such as "QH" or "Najwa" is legible | Everything, including the handwritten note, occasion and contributors |
 | Privacy | Photos never leave the computer | Photos are sent to the Claude API |
 
-## Getting the app
+## Installing
 
-**Option A: download the built .exe.** Every push to `main` runs the *Deposit Slip Tracker (Windows build)* GitHub Action. Open the run under the repo's **Actions** tab and download the `DepositSlipTracker-windows` artifact. It contains a single `DepositSlipTracker.exe` that needs no install. Windows SmartScreen may warn the first time because the exe is unsigned. Click *More info → Run anyway*.
+1. Download **`DepositSlipTracker-Setup-<version>.exe`**. It's on the repo's **Releases** page (right-hand side of the repo home page). You can also open the latest *Build Windows installer* run under **Actions** and download the `DepositSlipTracker-Setup` artifact, which is a zip containing the installer.
+2. Double-click it. No administrator rights are needed. It installs for the current Windows user and adds a Start-menu entry and, if you tick the box, a desktop shortcut.
+3. The first time, Windows SmartScreen may say *"Windows protected your PC"* because the installer isn't code-signed. Click **More info → Run anyway**.
 
-**Option B: build it yourself.** Install Python 3.11+ from python.org, then double-click `build_windows.bat`. The exe appears in `dist\`.
+To update, run the newer Setup over the top. To remove the app, go to *Settings → Apps → Deposit Slip Tracker → Uninstall*. Uninstalling never deletes your slips, images or settings.
 
-**Option C: run from source.** Run `pip install -r requirements.txt`, then `python run.py`.
+The repository is private, so only people with access to it on GitHub can download the installer. To give the app to someone else, download the Setup file and send it to them by OneDrive, USB stick or similar.
+
+### Publishing a new version (maintainers)
+
+Bump `__version__` in `deposit_tracker/__init__.py`, commit, then tag and push, for example `git tag v1.1.0 && git push origin v1.1.0`. GitHub Actions builds the installer and attaches it to a new Release automatically.
+
+### Building on your own PC
+
+Install Python 3.11+ and [Inno Setup 6](https://jrsoftware.org/isdl.php), then double-click `build_windows.bat`. The installer appears in `dist\`. To run from source instead, use `pip install -r requirements.txt`, then `python run.py`.
 
 ## First run
 
