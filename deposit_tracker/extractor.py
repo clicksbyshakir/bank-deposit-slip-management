@@ -1,4 +1,7 @@
-"""Read a deposit slip photo with Claude and return the fields for one record."""
+"""Read a deposit slip photo and return the fields for one record.
+
+Two readers: offline OCR (default, see ocr_reader.py) or Claude (optional, needs an API key).
+"""
 
 from __future__ import annotations
 
@@ -94,7 +97,16 @@ def _encode_image(path: Path) -> tuple[str, str]:
 
 
 def extract_slip(image_path: str | Path, settings: Settings) -> tuple[Slip, str]:
-    """Return a Slip filled from the image, plus the raw JSON Claude produced."""
+    """Return a Slip filled from the image, plus the raw reader output as JSON."""
+    if settings.reader == "claude":
+        return _read_with_claude(image_path, settings)
+    from .ocr_reader import read_slip
+
+    slip, lines = read_slip(image_path, settings)
+    return slip, json.dumps({"reader": "ocr", "lines": lines}, ensure_ascii=False)
+
+
+def _read_with_claude(image_path: str | Path, settings: Settings) -> tuple[Slip, str]:
     api_key = settings.effective_api_key()
     if not api_key:
         raise ExtractionError("No Anthropic API key set. Add one under Settings.")

@@ -6,7 +6,7 @@ call .venv\Scripts\activate.bat
 python -m pip install --upgrade pip
 pip install -r requirements.txt pyinstaller || goto :error
 pyinstaller --noconfirm --onefile --windowed --name DepositSlipTracker ^
-  --collect-submodules pillow_heif run.py || goto :error
+  --collect-submodules pillow_heif --collect-data rapidocr_onnxruntime run.py || goto :error
 echo.
 echo Built dist\DepositSlipTracker.exe
 goto :eof

@@ -45,6 +45,7 @@ DEFAULT_ACCOUNTS = [
 @dataclass
 class Settings:
     data_dir: str = str(_default_data_dir())
+    reader: str = "ocr"  # "ocr" = offline RapidOCR, "claude" = Claude API
     api_key: str = ""
     model: str = "claude-opus-5-5"
     organization: str = "Taheri Qarda"

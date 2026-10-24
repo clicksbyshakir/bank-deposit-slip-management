@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import sys
 from pathlib import Path
 
@@ -237,7 +238,7 @@ class SlipDialog(QDialog):
         form.addRow("Branch", self.branch)
         form.addRow("Remarks / to check", self.remarks)
 
-        self.read_btn = QPushButton("Read slip with Claude")
+        self.read_btn = QPushButton("Read slip again")
         self.read_btn.clicked.connect(self._run_extraction)
         self.read_btn.setEnabled(self.viewer._path is not None)
         attach_btn = QPushButton("Attach / replace image…")
@@ -257,6 +258,11 @@ class SlipDialog(QDialog):
         rl.addWidget(self.status)
         rl.addLayout(form)
         rl.addLayout(btn_row)
+        self.found_text = QPlainTextEdit(readOnly=True)
+        self.found_text.setPlaceholderText("Text the reader found on the slip appears here.")
+        self.found_text.setFixedHeight(110)
+        rl.addWidget(QLabel("Text found on slip (copy from here):"))
+        rl.addWidget(self.found_text)
         rl.addStretch()
         rl.addWidget(buttons)
 
@@ -288,6 +294,7 @@ class SlipDialog(QDialog):
         self.denoms.setText(s.denominations)
         self.branch.setText(s.branch or self.settings.branch)
         self.remarks.setPlainText(s.remarks)
+        self.found_text.setPlainText(_found_text(s.extracted_json))
         self._update_total()
 
     def _collect(self) -> Slip:
@@ -336,7 +343,8 @@ class SlipDialog(QDialog):
         self.job = job
         self._job_handled = False
         self.read_btn.setEnabled(False)
-        self.status.setText("⏳ Claude is reading the slip… you can start typing meanwhile.")
+        who = "Claude is reading" if self.settings.reader == "claude" else "Reading"
+        self.status.setText(f"⏳ {who} the slip… you can start typing meanwhile.")
         self.status.setStyleSheet("color: #555;")
         # Bound methods of this dialog are delivered on the UI thread (queued connection).
         job.finished.connect(self._on_job_signal)
@@ -358,14 +366,22 @@ class SlipDialog(QDialog):
             self.status.setStyleSheet("color: #b00020;")
             return
         extracted, raw = job.result
-        extracted.id, extracted.image_path = self.slip.id, self.slip.image_path
-        extracted.created_at = self.slip.created_at
-        extracted.extracted_json = raw
-        self.slip = extracted
-        self._load(extracted)
-        msg = "✔ Filled in from the image. Check every field against the slip before saving."
+        # Only fill what the reader found; keep anything already typed for the rest.
+        current = self._collect()
+        for name in SLIP_FIELDS:
+            value = getattr(extracted, name)
+            if value not in ("", None):
+                setattr(current, name, value)
+        current.extracted_json = raw
+        self.slip = current
+        self._load(current)
+        if self.settings.reader == "claude":
+            msg = "✔ Filled in from the image. Check every field against the slip before saving."
+        else:
+            msg = ("✔ Printed details filled in. Type the handwritten note, occasion and "
+                   "contributors, and check the account and amounts against the slip.")
         if extracted.remarks:
-            msg += "\nClaude flagged something to check — see Remarks."
+            msg += "\nSomething needs checking — see Remarks."
         self.status.setText(msg)
         self.status.setStyleSheet("color: #1b5e20;")
 
@@ -388,6 +404,21 @@ class SlipDialog(QDialog):
             s.image_path = self.db.store_image(self.new_image)
         self.db.save(s)
         self.accept()
+
+
+SLIP_FIELDS = ("account", "deposit_date", "deposit_time", "ref_no", "occasion", "note",
+               "contributors", "cad_cash", "usd_cash", "usd_converted", "fx_rate",
+               "denominations", "branch", "remarks")
+
+
+def _found_text(extracted_json: str) -> str:
+    try:
+        data = json.loads(extracted_json) if extracted_json else {}
+    except ValueError:
+        return ""
+    if isinstance(data, dict) and isinstance(data.get("lines"), list):
+        return "\n".join(data["lines"])
+    return ""
 
 
 def _parse_num(text: str):
@@ -422,6 +453,10 @@ class SettingsDialog(QDialog):
         dir_row.addWidget(self.data_dir)
         dir_row.addWidget(browse)
 
+        self.reader = QComboBox()
+        self.reader.addItem("Offline OCR — free, reads printed text only", "ocr")
+        self.reader.addItem("Claude — also reads handwriting, needs API key", "claude")
+        self.reader.setCurrentIndex(max(0, self.reader.findData(settings.reader)))
         self.api_key = QLineEdit(settings.api_key, echoMode=QLineEdit.Password,
                                  placeholderText="sk-ant-…  (or set ANTHROPIC_API_KEY)")
         self.model = QLineEdit(settings.model)
@@ -444,6 +479,7 @@ class SettingsDialog(QDialog):
 
         form = QFormLayout()
         form.addRow("Data folder", dir_row)
+        form.addRow("Read slips with", self.reader)
         form.addRow("Anthropic API key", self.api_key)
         form.addRow("Claude model", self.model)
         form.addRow("Organization", self.org)
@@ -455,7 +491,7 @@ class SettingsDialog(QDialog):
 
         layout = QVBoxLayout(self)
         layout.addLayout(form)
-        layout.addWidget(QLabel("Accounts (keywords help Claude assign each slip):"))
+        layout.addWidget(QLabel("Accounts (keywords on the slip are used to pick the account):"))
         layout.addWidget(self.accounts)
         layout.addLayout(acc_btns)
         layout.addWidget(buttons)
@@ -480,6 +516,10 @@ class SettingsDialog(QDialog):
                 accounts.append({"name": cells[0], "sheet": cells[1] or cells[0], "keywords": cells[2]})
         s = self.settings
         s.data_dir = self.data_dir.text().strip() or s.data_dir
+        s.reader = self.reader.currentData()
+        if s.reader == "claude" and not (self.api_key.text().strip() or s.effective_api_key()):
+            QMessageBox.warning(self, "API key needed", "Reading with Claude needs an Anthropic API key.")
+            return
         s.api_key = self.api_key.text().strip()
         s.model = self.model.text().strip() or "claude-opus-5-5"
         s.organization = self.org.text().strip()
@@ -560,9 +600,10 @@ class MainWindow(QMainWindow):
         self.statusBar().addPermanentWidget(self.totals)
         self.reload()
 
-        if not self.settings.effective_api_key():
+        if self.settings.reader == "claude" and not self.settings.effective_api_key():
             self.statusBar().showMessage(
-                "Tip: add an Anthropic API key in Settings so slips are read automatically.", 15000)
+                "Reading with Claude needs an Anthropic API key — add one in Settings, "
+                "or switch to offline OCR.", 15000)
 
     # data
 
@@ -644,8 +685,8 @@ class MainWindow(QMainWindow):
         if not files:
             return
         # Start reading every slip in the background straight away, then review them one by one.
-        have_key = bool(self.settings.effective_api_key())
-        jobs = [start_job(f, self.settings) if have_key else None for f in files]
+        can_read = self.settings.reader != "claude" or bool(self.settings.effective_api_key())
+        jobs = [start_job(f, self.settings) if can_read else None for f in files]
         saved = 0
         for i, (path, job) in enumerate(zip(files, jobs), start=1):
             dlg = SlipDialog(self, self.db, self.settings, Slip(branch=self.settings.branch),
