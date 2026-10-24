@@ -23,7 +23,7 @@ There are two ways to read photos, chosen in Settings:
 1. Open **⚙ Settings**.
    - **Read slips with**: *Offline OCR* is the default and needs nothing else. Choose *Claude* only if you also want handwriting read; it needs an **Anthropic API key** from console.anthropic.com.
    - **Data folder**: defaults to `Documents\DepositSlips`. If several people should share one set of records, point it at a OneDrive or Dropbox folder. Only one person should edit at a time.
-   - **Accounts**: preset to *Mohammedi Scheme / QH*, *Najwa Income* and *Silat Income*. The keywords (for example "QH, Qardan Hasana") help Claude decide which account a slip belongs to.
+   - **Accounts**: preset to *Mohammedi Scheme / QH*, *Najwa Income* and *Silat Income*. The keywords (for example "QH, Qardan Hasana") are used to pick the account when they appear on the slip.
 2. Optional: use **⬆ Import from Excel…** to load the existing `Deposit_Slips_Jun-Oct_2026.xlsx`. Imported rows have no photo yet. Open a row with **Edit** and click **Attach / replace image…** to add one.
 
 ## Daily use
