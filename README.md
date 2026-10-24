@@ -12,7 +12,7 @@ There are two ways to read photos, chosen in Settings:
 
 ## Getting the app
 
-**Option A: download the built .exe.** Every push that touches `deposit-slip-tracker/` runs the *Deposit Slip Tracker (Windows build)* GitHub Action. Open the run under the repo's **Actions** tab and download the `DepositSlipTracker-windows` artifact. It contains a single `DepositSlipTracker.exe` that needs no install. Windows SmartScreen may warn the first time because the exe is unsigned. Click *More info → Run anyway*.
+**Option A: download the built .exe.** Every push to `main` runs the *Deposit Slip Tracker (Windows build)* GitHub Action. Open the run under the repo's **Actions** tab and download the `DepositSlipTracker-windows` artifact. It contains a single `DepositSlipTracker.exe` that needs no install. Windows SmartScreen may warn the first time because the exe is unsigned. Click *More info → Run anyway*.
 
 **Option B: build it yourself.** Install Python 3.11+ from python.org, then double-click `build_windows.bat`. The exe appears in `dist\`.
 

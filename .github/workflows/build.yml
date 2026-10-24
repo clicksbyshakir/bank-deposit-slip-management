@@ -1,0 +1,25 @@
+name: Deposit Slip Tracker (Windows build)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "**"
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: pip install -r requirements.txt pyinstaller
+      - name: Build exe
+        run: pyinstaller --noconfirm --onefile --windowed --name DepositSlipTracker --collect-submodules pillow_heif --collect-data rapidocr_onnxruntime run.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DepositSlipTracker-windows
+          path: dist/DepositSlipTracker.exe
